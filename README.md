@@ -17,11 +17,17 @@ You control the number of instances and ports via environment variables.
 
 ## 🏗️ Architecture
 
-```
-[Client] → [NGINX (port NGINX_PORT)] → [Ollama #1 (START_PORT)]
-                                         [Ollama #2 (START_PORT+1)]
-                                         ...
-                                         [Ollama #N (START_PORT+N-1)]
+```<details><summary>flowchart TD
+    Client["Client"]
+    NGINX["NGINX (NGINX_PORT)"]
+    O1["Ollama #1 (START_PORT)"]
+    O2["Ollama #2 (START_PORT+1)"]
+    ON["Ollama #N (START_PORT+N-1)"]
+
+    Client --> NGINX
+    NGINX --> O1
+    NGINX --> O2
+    NGINX --> ON</summary></details>
 ```
 - All Ollama instances run the `nomic-embed-text` model
 - NGINX load balances requests using the least-connections policy
