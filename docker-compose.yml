@@ -1,0 +1,27 @@
+services:
+  nomic-embedding-lb:
+    build: .
+    container_name: nomic-embedding-lb
+    ports:
+      - "11000:11000"
+    environment:
+      - NUM_INSTANCES=4  # Customize number of instances
+      - START_PORT=11001
+      - NGINX_PORT=11000
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:11000/api/tags"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 120s
+    volumes:
+      # Optional: Mount logs for debugging
+      - ./logs:/var/log/supervisor
+    # Resource limits (adjust based on your system)
+    deploy:
+      resources:
+        limits:
+          memory: 16G  # Adjust based on NUM_INSTANCES
+        reservations:
+          memory: 8G 
