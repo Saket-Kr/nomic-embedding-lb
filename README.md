@@ -1,3 +1,10 @@
+<p align="center">
+  <img src="https://raw.githubusercontent.com/Saket-Kr/nomic-embedding-lb/main/NOMICLB.png" alt="Project Logo" width="120"/>
+</p>
+
+
+
+
 # Nomic Embedding Load Balancer Docker Image
 
 A ready-to-use, scalable Docker container for running **multiple Ollama instances** (with the `nomic-embed-text` model) behind an **NGINX load balancer**. Perfect for deploying high-throughput embedding services with minimal setup.
