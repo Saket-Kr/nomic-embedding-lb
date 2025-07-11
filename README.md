@@ -30,6 +30,7 @@ flowchart TD
     NGINX --> ON
 ```
 
+```
 [Client]
 |
 v
@@ -39,6 +40,7 @@ v
 +--> [Ollama #2 (START_PORT+1)]
 ...
 +--> [Ollama #N (START_PORT+N-1)]
+```
 
 ---
 
