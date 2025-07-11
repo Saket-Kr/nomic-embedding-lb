@@ -165,7 +165,9 @@ If you see errors about ports, make sure the ports are free on your host.
 
 ## 🏷️ Image Info
 - Docker Hub: [`saketkr1/nomic-embedding-lb`](https://hub.docker.com/r/saketkr1/nomic-embedding-lb)
-- Maintainer: [saketkr1](https://hub.docker.com/u/saketkr1)
+- Maintainer: [`saketkr1`](https://hub.docker.com/u/saketkr1)
+- GitHub: [`Saket-Kr`](https://github.com/Saket-Kr)
+
 
 ---
 
