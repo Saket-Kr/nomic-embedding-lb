@@ -16,8 +16,8 @@ You control the number of instances and ports via environment variables.
 ---
 
 ## 🏗️ Architecture
-
-<details><summary>flowchart TD
+```mermaid
+flowchart TD
     Client["Client"]
     NGINX["NGINX (NGINX_PORT)"]
     O1["Ollama #1 (START_PORT)"]
@@ -27,7 +27,18 @@ You control the number of instances and ports via environment variables.
     Client --> NGINX
     NGINX --> O1
     NGINX --> O2
-    NGINX --> ON</summary></details>
+    NGINX --> ON
+```
+
+[Client]
+|
+v
+[NGINX (NGINX_PORT)]
+|
++--> [Ollama #1 (START_PORT)]
++--> [Ollama #2 (START_PORT+1)]
+...
++--> [Ollama #N (START_PORT+N-1)]
 
 ---
 
