@@ -89,9 +89,24 @@ fi
 
 print_status "Starting build process..."
 
-# Build the image
-print_status "Building Docker image..."
-docker build -t "$IMAGE_NAME:$TAG" .
+# Build the image for multiple platforms
+print_status "Building Docker image for multiple platforms..."
+
+# Create buildx builder if it doesn't exist
+if ! docker buildx ls | grep -q "multiplatform"; then
+    print_status "Creating multiplatform builder..."
+    docker buildx create --name multiplatform --use
+fi
+
+# Use existing or created builder
+docker buildx use multiplatform
+
+# Build for multiple platforms
+docker buildx build \
+    --platform linux/amd64,linux/arm64 \
+    -t "$IMAGE_NAME:$TAG" \
+    --load \
+    .
 
 if [ $? -eq 0 ]; then
     print_status "✅ Docker image built successfully: $IMAGE_NAME:$TAG"
@@ -100,27 +115,34 @@ else
     exit 1
 fi
 
-# Tag for Docker Hub if username provided
-if [[ -n "$DOCKER_USERNAME" ]]; then
-    FULL_IMAGE_NAME="$DOCKER_USERNAME/$IMAGE_NAME:$TAG"
-    print_status "Tagging image for Docker Hub: $FULL_IMAGE_NAME"
-    docker tag "$IMAGE_NAME:$TAG" "$FULL_IMAGE_NAME"
-fi
-
 # Push to Docker Hub if not build-only
 if [[ "$BUILD_ONLY" == false && -n "$DOCKER_USERNAME" ]]; then
-    print_status "Pushing image to Docker Hub..."
+    FULL_IMAGE_NAME="$DOCKER_USERNAME/$IMAGE_NAME:$TAG"
+    print_status "Building and pushing multi-platform image to Docker Hub: $FULL_IMAGE_NAME"
     
+    # Build and push multi-platform image directly
     # Note: Docker will handle authentication automatically
     # If not logged in, the push will fail with a clear error message
     
-    docker push "$FULL_IMAGE_NAME"
+    docker buildx build \
+        --platform linux/amd64,linux/arm64 \
+        -t "$FULL_IMAGE_NAME" \
+        --push \
+        .
     
     if [ $? -eq 0 ]; then
-        print_status "✅ Image pushed successfully to Docker Hub: $FULL_IMAGE_NAME"
+        print_status "✅ Multi-platform image pushed successfully to Docker Hub: $FULL_IMAGE_NAME"
+        print_status "   Supported architectures: linux/amd64 (Ubuntu/x86_64), linux/arm64 (Mac M1/M2)"
     else
-        print_error "❌ Failed to push image to Docker Hub"
+        print_error "❌ Failed to push multi-platform image to Docker Hub"
         exit 1
+    fi
+else
+    # Tag for local use if username provided but build-only
+    if [[ -n "$DOCKER_USERNAME" ]]; then
+        FULL_IMAGE_NAME="$DOCKER_USERNAME/$IMAGE_NAME:$TAG"
+        print_status "Tagging image for Docker Hub: $FULL_IMAGE_NAME"
+        docker tag "$IMAGE_NAME:$TAG" "$FULL_IMAGE_NAME"
     fi
 fi
 
@@ -129,7 +151,8 @@ print_status "Build process completed successfully!"
 # Show usage instructions
 if [[ "$BUILD_ONLY" == false && -n "$DOCKER_USERNAME" ]]; then
     echo ""
-    echo "🎉 Your image is now available on Docker Hub!"
+    echo "🎉 Your multi-platform image is now available on Docker Hub!"
+    echo "   Compatible with: Mac (ARM64), Ubuntu/Linux (AMD64), and other architectures"
     echo ""
     echo "Usage examples:"
     echo "  # Basic usage (6 instances)"
