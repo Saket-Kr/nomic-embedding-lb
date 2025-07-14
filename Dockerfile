@@ -15,8 +15,39 @@ RUN apt-get update && apt-get install -y \
     supervisor \
     && rm -rf /var/lib/apt/lists/*
 
-# Install Ollama
-RUN curl -fsSL https://ollama.com/install.sh | sh
+# Install Ollama with retries and fallback for better reliability in multi-platform builds
+RUN set -e && \
+    OLLAMA_INSTALLED=false && \
+    # Try script-based installation first (3 attempts)
+    for i in 1 2 3; do \
+        echo "Script installation attempt $i..." && \
+        if curl -fsSL --retry 3 --retry-delay 2 --connect-timeout 30 --max-time 600 \
+            https://ollama.com/install.sh | sh; then \
+            OLLAMA_INSTALLED=true && break; \
+        else \
+            echo "Script installation attempt $i failed" && sleep 10; \
+        fi; \
+    done && \
+    # Fallback: Manual installation if script failed
+    if [ "$OLLAMA_INSTALLED" = "false" ]; then \
+        echo "Script installation failed, trying manual installation..." && \
+        ARCH=$(uname -m) && \
+        case $ARCH in \
+            x86_64) OLLAMA_ARCH="amd64" ;; \
+            aarch64|arm64) OLLAMA_ARCH="arm64" ;; \
+            *) echo "Unsupported architecture: $ARCH" && exit 1 ;; \
+        esac && \
+        curl -fsSL --retry 5 --retry-delay 3 --connect-timeout 30 --max-time 600 \
+            "https://github.com/ollama/ollama/releases/latest/download/ollama-linux-${OLLAMA_ARCH}" \
+            -o /usr/local/bin/ollama && \
+        chmod +x /usr/local/bin/ollama; \
+    fi && \
+    # Verify installation
+    if ! command -v ollama >/dev/null 2>&1; then \
+        echo "Ollama installation failed completely" && exit 1; \
+    else \
+        echo "Ollama installed successfully: $(ollama --version)"; \
+    fi
 
 # Create directories
 RUN mkdir -p /var/log/supervisor /etc/supervisor/conf.d
