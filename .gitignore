@@ -98,14 +98,6 @@ poetry.lock
 # Windows
 Thumbs.db
 
-# Docker
-Dockerfile
-docker-compose.yml
-.dockerignore
-
-# Shell scripts
-*.sh
-
 # Logs
 logs/
 *.log
