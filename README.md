@@ -1,6 +1,12 @@
+<p align="center">
+  <img src="https://raw.githubusercontent.com/Saket-Kr/nomic-embedding-lb/main/NOMICLB.png" alt="Project Logo" width="120"/>
+</p>
+
 # Nomic Embedding Load Balancer Docker Image
 
-A ready-to-use, scalable Docker container for running **multiple Ollama instances** (with the `nomic-embed-text` model) behind an **NGINX load balancer**. Perfect for deploying high-throughput embedding services with minimal setup.
+A ready-to-use, scalable **multi-platform** Docker container for running **multiple Ollama instances** (with the `nomic-embed-text` model) behind an **NGINX load balancer**. Perfect for deploying high-throughput embedding services with minimal setup.
+
+**🏗️ Multi-Platform Support**: Compatible with Mac (ARM64), Ubuntu/Linux (AMD64), and other Docker-supported architectures.
 
 ---
 
@@ -97,8 +103,7 @@ After starting the container, test the embedding endpoint:
 **With curl:**
 ```bash
 curl http://localhost:11000/api/embeddings \
-  -H "Content-Type: application/json" \
-  -d '{"model": "nomic-embed-text", "prompt": "test embedding"}'
+  -H "Content-Type: application/json" -d '{"model": "nomic-embed-text", "prompt": "test embedding"}'
 ```
 
 **With Python:**
@@ -131,6 +136,31 @@ If you see errors about ports, make sure the ports are free on your host.
 
 ---
 
+## 🔧 Building Multi-Platform Images
+
+This image supports multiple architectures out of the box. To build your own multi-platform version:
+
+```bash
+# Build for both AMD64 (Ubuntu/Linux) and ARM64 (Mac M1/M2)
+./build_and_push.sh -u yourusername -t latest
+
+# Build only (no push)
+./build_and_push.sh -u yourusername -b
+
+# Build with custom tag
+./build_and_push.sh -u yourusername -t v1.0.0
+```
+
+**Supported Platforms:**
+- `linux/amd64` - Ubuntu, Debian, CentOS, RHEL, and most Linux distributions
+- `linux/arm64` - Mac with Apple Silicon (M1/M2), ARM-based servers
+
+**Requirements:**
+- Docker Desktop with BuildKit enabled
+- Docker Buildx (comes with Docker Desktop)
+
+---
+
 ## ❓ FAQ
 
 - **Q: How much RAM do I need?**
@@ -144,7 +174,8 @@ If you see errors about ports, make sure the ports are free on your host.
 
 ## 🏷️ Image Info
 - Docker Hub: [`saketkr1/nomic-embedding-lb`](https://hub.docker.com/r/saketkr1/nomic-embedding-lb)
-- Maintainer: [saketkr1](https://hub.docker.com/u/saketkr1)
+- Maintainer: [`saketkr1`](https://hub.docker.com/u/saketkr1)
+- GitHub: [`Saket-Kr`](https://github.com/Saket-Kr)
 
 ---
 
