@@ -166,4 +166,5 @@ if [[ "$BUILD_ONLY" == false && -n "$DOCKER_USERNAME" ]]; then
     echo ""
     echo "  # Test the service"
     echo "  python3 test_setup.py"
-fi 
+fi
+

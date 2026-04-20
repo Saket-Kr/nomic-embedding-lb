@@ -23,12 +23,32 @@ You control the number of instances and ports via environment variables.
 
 ## 🏗️ Architecture
 
+```mermaid
+flowchart TD
+    Client["Client"]
+    NGINX["NGINX (NGINX_PORT)"]
+    O1["Ollama #1 (START_PORT)"]
+    O2["Ollama #2 (START_PORT+1)"]
+    ON["Ollama #N (START_PORT+N-1)"]
+
+    Client --> NGINX
+    NGINX --> O1
+    NGINX --> O2
+    NGINX --> ON
 ```
-[Client] → [NGINX (port NGINX_PORT)] → [Ollama #1 (START_PORT)]
-                                         [Ollama #2 (START_PORT+1)]
-                                         ...
-                                         [Ollama #N (START_PORT+N-1)]
+
 ```
+[Client]
+|
+v
+[NGINX (NGINX_PORT)]
+|
++--> [Ollama #1 (START_PORT)]
++--> [Ollama #2 (START_PORT+1)]
+...
++--> [Ollama #N (START_PORT+N-1)]
+```
+
 - All Ollama instances run the `nomic-embed-text` model
 - NGINX load balances requests using the least-connections policy
 
@@ -103,7 +123,8 @@ After starting the container, test the embedding endpoint:
 **With curl:**
 ```bash
 curl http://localhost:11000/api/embeddings \
-  -H "Content-Type: application/json" -d '{"model": "nomic-embed-text", "prompt": "test embedding"}'
+  -H "Content-Type: application/json" \
+  -d '{"model": "nomic-embed-text", "prompt": "test embedding"}'
 ```
 
 **With Python:**
@@ -179,4 +200,4 @@ This image supports multiple architectures out of the box. To build your own mul
 
 ---
 
-Happy embedding! 🚀 
+Happy embedding! 🚀
