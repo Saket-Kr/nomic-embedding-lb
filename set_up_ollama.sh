@@ -43,8 +43,8 @@ for i in $(seq 0 $(($NUM_INSTANCES-1))); do
     fi
   fi
   
-  echo "Starting Ollama instance #$((i+1)) on port $PORT..."
-  nohup env OLLAMA_HOST="0.0.0.0:$PORT" ollama serve > /dev/null 2>&1 &
+  echo "Starting Ollama instance #$((i+1)) on port $PORT (GPU $i)..."
+  nohup env OLLAMA_HOST="0.0.0.0:$PORT" CUDA_VISIBLE_DEVICES=$i ollama serve > /dev/null 2>&1 &
   
   PID=$!
   PIDS[$i]=$PID

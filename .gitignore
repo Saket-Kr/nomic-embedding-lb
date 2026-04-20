@@ -92,6 +92,12 @@ poetry.lock
 # PyCharm
 .idea/
 
+# AI tool artifacts
+.claude/
+.cursor/
+.cursorrules
+CLAUDE.md
+
 # Mac OS
 .DS_Store
 

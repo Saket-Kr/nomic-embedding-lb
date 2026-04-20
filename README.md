@@ -2,34 +2,59 @@
   <img src="https://raw.githubusercontent.com/Saket-Kr/nomic-embedding-lb/main/NOMICLB.png" alt="Project Logo" width="120"/>
 </p>
 
-# Nomic Embedding Load Balancer Docker Image
+# Nomic Embedding Load Balancer
 
-A ready-to-use, scalable **multi-platform** Docker container for running **multiple Ollama instances** (with the `nomic-embed-text` model) behind an **NGINX load balancer**. Perfect for deploying high-throughput embedding services with minimal setup.
+A drop-in Docker image for running the `nomic-embed-text` model as a load-balanced, **GPU-accelerated** embedding service. Built on the official `ollama/ollama` image, with NGINX routing requests across one Ollama instance per GPU.
 
-**🏗️ Multi-Platform Support**: Compatible with Mac (ARM64), Ubuntu/Linux (AMD64), and other Docker-supported architectures.
+One `docker run` and you have an embedding endpoint on `:11000` that scales with the number of GPUs you give it.
 
----
+## ✨ Features
 
-## 🚀 Overview
+- **GPU-accelerated out of the box** — uses CUDA when the container gets GPUs, falls back to CPU otherwise
+- **Linear multi-GPU scaling** — each Ollama instance is pinned to a distinct GPU via `CUDA_VISIBLE_DEVICES`; set `NUM_INSTANCES` equal to your GPU count for parallel inference
+- **Production-ready** — NGINX load balancing (least-connections), supervisor-managed processes, Docker healthcheck
+- **Reproducible** — pinned `ollama/ollama:0.21.0` base image; no drifting install scripts
+- **Zero-config** — sensible defaults; override with environment variables
 
-This container launches:
-- **N Ollama instances** (each running the `nomic-embed-text` model) on consecutive ports
-- An **NGINX load balancer** that routes requests to these instances
-- **Supervisor** to manage all processes
+## 🚀 Quickstart
 
-You control the number of instances and ports via environment variables.
+**Single GPU (or CPU fallback):**
+```bash
+docker run -d --gpus all -p 11000:11000 \
+  --name nomic-lb saketkr1/nomic-embedding-lb:latest
+```
+
+**Two GPUs:**
+```bash
+docker run -d --gpus all -p 11000:11000 \
+  -e NUM_INSTANCES=2 \
+  --name nomic-lb saketkr1/nomic-embedding-lb:latest
+```
+
+Then hit it:
+```bash
+curl http://localhost:11000/api/embeddings \
+  -H "Content-Type: application/json" \
+  -d '{"model": "nomic-embed-text", "prompt": "test embedding"}'
+```
+
+## 📋 Prerequisites
+
+- **Docker** (24+ recommended)
+- **For GPU**: [NVIDIA Container Toolkit](https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/latest/install-guide.html) installed on the host, so `--gpus all` works
+- **CPU-only works too** — just drop `--gpus all`
 
 ---
 
 ## 🏗️ Architecture
 
 ```mermaid
-flowchart TD
+flowchart LR
     Client["Client"]
-    NGINX["NGINX (NGINX_PORT)"]
-    O1["Ollama #1 (START_PORT)"]
-    O2["Ollama #2 (START_PORT+1)"]
-    ON["Ollama #N (START_PORT+N-1)"]
+    NGINX["NGINX<br/>(NGINX_PORT)"]
+    O1["Ollama #1<br/>GPU 0"]
+    O2["Ollama #2<br/>GPU 1"]
+    ON["Ollama #N<br/>GPU N-1"]
 
     Client --> NGINX
     NGINX --> O1
@@ -37,20 +62,23 @@ flowchart TD
     NGINX --> ON
 ```
 
-```
-[Client]
-|
-v
-[NGINX (NGINX_PORT)]
-|
-+--> [Ollama #1 (START_PORT)]
-+--> [Ollama #2 (START_PORT+1)]
-...
-+--> [Ollama #N (START_PORT+N-1)]
-```
-
 - All Ollama instances run the `nomic-embed-text` model
-- NGINX load balances requests using the least-connections policy
+- NGINX load-balances requests using the least-connections policy
+- **Each instance is pinned to one GPU** via `CUDA_VISIBLE_DEVICES` (instance `i` → GPU `i`), so `NUM_INSTANCES=N` on a host with N GPUs uses all of them in parallel
+
+---
+
+## 🎯 Sizing `NUM_INSTANCES`
+
+Rule of thumb: **one instance per GPU**.
+
+| Hardware | Recommended `NUM_INSTANCES` | Effective throughput |
+|---|---|---|
+| 1 GPU | `1` | 1× (nginx is a passthrough) |
+| N GPUs | `N` | ~N× (nginx least-connections distributes across GPUs) |
+| CPU-only | `1`–`cores/2` | Scales with cores; GPU benefits do not apply |
+
+Running more instances than GPUs doesn't help — extra instances land on CPU (no free GPU assigned) and share memory with the rest.
 
 ---
 
@@ -58,138 +86,75 @@ v
 
 | Variable         | Default  | Description                                                      |
 |------------------|----------|------------------------------------------------------------------|
-| `NUM_INSTANCES`  | `6`      | Number of Ollama instances to start                              |
-| `START_PORT`     | `11001`  | First port for Ollama instances (next instances use +1, +2, ...) |
-| `NGINX_PORT`     | `11000`  | Port for NGINX load balancer (exposed to host)                   |
+| `NUM_INSTANCES`  | `1`      | Number of Ollama instances. Set this to your GPU count for multi-GPU scaling. |
+| `START_PORT`     | `11001`  | First internal port for Ollama instances (next use +1, +2, …)    |
+| `NGINX_PORT`     | `11000`  | Port NGINX exposes to the host                                   |
 
 ---
 
-## 🧑‍💻 Usage Examples
+## 🧑‍💻 Usage Patterns
 
-### 1. **Basic Usage (6 instances, default ports)**
+Beyond the Quickstart, mix and match the environment variables above. A few common patterns:
+
+**Custom ports** (host firewall restricts the defaults):
 ```bash
-docker run -d -p 11000:11000 \
-  --name nomic-lb \
-  saketkr1/nomic-embedding-lb:latest
-```
-- NGINX listens on port 11000
-- Ollama runs on ports 11001–11006
-
-### 2. **Custom Number of Instances**
-```bash
-docker run -d -p 11000:11000 \
-  -e NUM_INSTANCES=4 \
-  --name nomic-lb-4 \
-  saketkr1/nomic-embedding-lb:latest
-```
-- 4 Ollama instances (ports 11001–11004)
-
-### 3. **Custom Starting Port for Ollama**
-```bash
-docker run -d -p 11000:11000 \
-  -e NUM_INSTANCES=3 \
-  -e START_PORT=12001 \
-  --name nomic-lb-custom-port \
-  saketkr1/nomic-embedding-lb:latest
-```
-- Ollama runs on ports 12001–12003
-
-### 4. **Custom NGINX Port**
-```bash
-docker run -d -p 8080:8080 \
-  -e NGINX_PORT=8080 \
-  --name nomic-lb-nginx8080 \
-  saketkr1/nomic-embedding-lb:latest
-```
-- NGINX listens on port 8080
-
-### 5. **All Customizations Together**
-```bash
-docker run -d -p 9000:9000 \
-  -e NUM_INSTANCES=8 \
-  -e START_PORT=13001 \
-  -e NGINX_PORT=9000 \
-  --name your-own-balanced-nomic \
-  saketkr1/nomic-embedding-lb:latest
-```
-- 8 Ollama instances (ports 13001–13008), NGINX on 9000
-
----
-
-## 🔬 Testing the Service
-
-After starting the container, test the embedding endpoint:
-
-**With curl:**
-```bash
-curl http://localhost:11000/api/embeddings \
-  -H "Content-Type: application/json" \
-  -d '{"model": "nomic-embed-text", "prompt": "test embedding"}'
+docker run -d --gpus all -p 8080:8080 \
+  -e NUM_INSTANCES=1 -e NGINX_PORT=8080 \
+  --name nomic-lb saketkr1/nomic-embedding-lb:latest
 ```
 
-**With Python:**
+**Docker Compose** (local dev):
+```bash
+docker-compose up -d
+```
+Edit `docker-compose.yml` to adjust instance count, ports, and GPU passthrough.
+
+**Python client:**
 ```python
 import requests
 response = requests.post('http://localhost:11000/api/embeddings',
   json={'model': 'nomic-embed-text', 'prompt': 'test embedding'})
-print(response.json())
+print(response.json()['embedding'])
 ```
-
----
-
-## 🛠️ Advanced: Docker Compose (Local Dev)
-
-```bash
-docker-compose up -d
-```
-- Edit `docker-compose.yml` to set instance count, ports, etc.
 
 ---
 
 ## 📋 Logs & Troubleshooting
 
-- View logs: `docker logs <container_name>`
-- Check health: `docker ps`
-- Stop: `docker stop <container_name>`
-- Remove: `docker rm <container_name>`
-
-If you see errors about ports, make sure the ports are free on your host.
+- **View logs**: `docker logs <container_name>`
+- **Check health**: `docker ps` (look for the `healthy` status)
+- **Stop / remove**: `docker stop <name>` / `docker rm <name>`
+- **Port already in use**: free the host port or override `NGINX_PORT`
+- **GPU not detected**: verify the NVIDIA Container Toolkit is installed on the host and `docker run --rm --gpus all nvidia/cuda:12.2.0-base-ubuntu22.04 nvidia-smi` works
 
 ---
 
-## 🔧 Building Multi-Platform Images
+## 🔧 Building the Image Yourself
 
-This image supports multiple architectures out of the box. To build your own multi-platform version:
+The published image is `linux/amd64` (standard for GPU hosts). To build locally:
 
 ```bash
-# Build for both AMD64 (Ubuntu/Linux) and ARM64 (Mac M1/M2)
-./build_and_push.sh -u yourusername -t latest
+# Build & push to your registry
+./build_and_push.sh -u <your-dockerhub-username> -t latest
 
-# Build only (no push)
-./build_and_push.sh -u yourusername -b
-
-# Build with custom tag
-./build_and_push.sh -u yourusername -t v1.0.0
+# Build only, no push
+./build_and_push.sh -u <your-dockerhub-username> -b
 ```
 
-**Supported Platforms:**
-- `linux/amd64` - Ubuntu, Debian, CentOS, RHEL, and most Linux distributions
-- `linux/arm64` - Mac with Apple Silicon (M1/M2), ARM-based servers
-
-**Requirements:**
-- Docker Desktop with BuildKit enabled
-- Docker Buildx (comes with Docker Desktop)
+The script supports multi-arch builds via `docker buildx`. See the script for the full options.
 
 ---
 
 ## ❓ FAQ
 
-- **Q: How much RAM do I need?**
-  - Each Ollama instance uses ~2–4GB RAM. Plan accordingly.
+- **Q: How much memory do I need?**
+  - On GPU, `nomic-embed-text` uses under 1 GB of VRAM per instance. On CPU, each instance uses ~2–4 GB of system RAM.
+- **Q: Does it fall back to CPU if I don't pass `--gpus`?**
+  - Yes. The underlying `ollama/ollama` image detects the GPU at runtime; without one, it runs on CPU (noticeably slower).
 - **Q: How do I change the model?**
-  - This image is pre-configured for `nomic-embed-text`. For other models, you’ll need to modify the image.
+  - This image is pre-configured for `nomic-embed-text`. For other models, you'll need to modify `set_up_ollama.sh` and rebuild.
 - **Q: Can I use this in production?**
-  - Yes! Just set the environment variables and port mappings as needed.
+  - Yes. Set the environment variables and port mappings as needed, and run with `--restart unless-stopped` for auto-recovery.
 
 ---
 
